@@ -43,4 +43,16 @@ class CustomerSurveyResultController extends Controller {
         return view('result.excel')->withSurvey($survey)->withCustomer($customer)->withResult($result);
     }
 
+    /**
+     * Show the result using the excel template.
+     * @param Customer $customer
+     * @param Survey $survey
+     * @param Result $result
+     * @return mixed
+     */
+    public function stats(Customer $customer, Survey $survey, Result $result)
+    {
+        return view('result.excel')->withSurvey($survey)->withCustomer($customer)->withResult($result);
+    }
+
 }
