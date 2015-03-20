@@ -47,6 +47,21 @@ class TokenController extends Controller {
                 $result->result_id = $token->result_id;
                 $result->save();
             }
+            elseif($answer['type'] == 3)
+            {
+                $answers = $answer;
+                foreach($answers['rates'] as $answer)
+                {
+                    $result = new Answer;
+                    $result->type = $answers['type'];
+                    $result->question = $question;
+                    $result->token_id = $token->id;
+                    $result->survey_id = $survey->id;
+                    $result->answer = $answer['answer'];
+                    $result->result_id = $token->result_id;
+                    $result->save();
+                }
+            }
             else
             {
                 $result = new Answer;

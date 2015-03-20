@@ -50,6 +50,7 @@
                                         </div>
                                     </div>
                                 </div>
+                                <input type="hidden" name="answer[{{$questiongroup['id']}}][type]" value="{{$questiongroup['type']}}"/>
                                 @foreach($questiongroup['questions'] as $question)
                                     <div class="uk-width-1-1">
                                         <div class="uk-grid">
@@ -59,23 +60,22 @@
                                             <div class="uk-width-2-3">
                                                 <div class="uk-grid">
                                                     <div class="uk-width-1-6">
-                                                        <input type="radio" name="answer[{{$question['id']}}][answer]" value="1"/>
-                                                        <input type="hidden" name="answer[{{$question['id']}}][type]" value="{{$questiongroup['type']}}"/>
+                                                        <input type="radio" name="answer[{{$questiongroup['id']}}][rates][{{$question['id']}}][answer]" value="1"/>
                                                     </div>
                                                     <div class="uk-width-1-6">
-                                                        <input type="radio" name="answer[{{$question['id']}}][answer]" value="2"/>
+                                                        <input type="radio" name="answer[{{$questiongroup['id']}}][rates][{{$question['id']}}][answer]" value="2"/>
                                                     </div>
                                                     <div class="uk-width-1-6">
-                                                        <input type="radio" name="answer[{{$question['id']}}][answer]" value="3"/>
+                                                        <input type="radio" name="answer[{{$questiongroup['id']}}][rates][{{$question['id']}}][answer]" value="3"/>
                                                     </div>
                                                     <div class="uk-width-1-6">
-                                                        <input type="radio" name="answer[{{$question['id']}}][answer]" value="4"/>
+                                                        <input type="radio" name="answer[{{$questiongroup['id']}}][rates][{{$question['id']}}][answer]" value="4"/>
                                                     </div>
                                                     <div class="uk-width-1-6">
-                                                        <input type="radio" name="answer[{{$question['id']}}][answer]" value="5"/>
+                                                        <input type="radio" name="answer[{{$questiongroup['id']}}][{{$question['id']}}][answer]" value="5"/>
                                                     </div>
                                                     <div class="uk-width-1-6">
-                                                        <input checked type="radio" name="answer[{{$question['id']}}][answer]" value="0"/>
+                                                        <input checked type="radio" name="answer[{{$questiongroup['id']}}][rates][{{$question['id']}}][answer]" value="0"/>
                                                     </div>
                                                 </div>
                                             </div>
