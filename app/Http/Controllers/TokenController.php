@@ -17,12 +17,15 @@ class TokenController extends Controller
      */
     public function key(Survey $survey, $key)
     {
+        \Debugbar::disable();
         $customer = $survey->customer;
         $token = Token::where('token', $key)->first();
         //dd($survey->questions[$token->progress]);
         if ($token->finished) {
             return view('token.finished');
         }
+        return view('token.closed');
+        $token->type = $survey->groups[$token->group]['type'];
 
         return view('token.show')->withToken($token)->withSurvey($survey)->withCustomer($customer)->withQuestions($survey->questions[$token->progress]);
     }
@@ -62,7 +65,6 @@ class TokenController extends Controller
                     }
                     $input->save();
                     break;
-
                 case 3:
                     $input->answer = $answer['answer'];
                     $input->save();
@@ -70,44 +72,16 @@ class TokenController extends Controller
                 case 4:
                     if (array_key_exists('answer', $answer)) {
                         $input->answer = $answer['answer'];
-                    } else {
-                        $input->answer = 0;
+                        $input->save();
                     }
-                    $input->save();
                     break;
             }
-            //dd($input);
             unset($input);
-            /*if($answer['type'] == 1 && !$answer['answer'] == "" )
-            {
-                $result = new Answer;
-                $result->type = $answer['type'];
-                $result->question = $question;
-                $result->answer = $question;
-                $result->text = $answer['answer'];
-                $result->token_id = $token->id;
-                $result->survey_id = $survey->id;
-                $result->result_id = $token->result_id;
-                $result->save();
-            }
-            else
-            {
-                $result = new Answer;
-                $result->type = $answer['type'];
-                $result->question = $question;
-                $result->token_id = $token->id;
-                $result->survey_id = $survey->id;
-                if (array_key_exists('answer', $answer))
-                    $result->answer = $answer['answer'];
-                else
-                    $result->answer = 0;
-                $result->result_id = $token->result_id;
-                $result->save();
-            }*/
         }
         $token->progress ++;
         if ($token->progress >= count($survey->questions)) {
             $token->finished = true;
+            //return redirect()->route('customer.survey.analyze', [$survey->customer, $survey, $token->result]);
         }
         $token->save();
 

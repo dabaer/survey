@@ -43,13 +43,17 @@ Route::resource('customer.user', 'CustomerUserController', ['except' => 'show'])
 
 Route::resource('customer.survey', 'CustomerSurveyController');
 
-Route::get('customer/{customer}/survey/{survey}/send-welcome', ['as' => 'customer.survey.sendWelcome', 'uses' => 'CustomerSurveyController@sendWelcome']);
+Route::get('customer/{customer}/survey/{survey}/send-mails/{type}', ['as' => 'customer.survey.sendWelcome', 'uses' => 'CustomerSurveyController@sendMails']);
 
 Route::get('customer/{customer}/survey/{survey}/analyze/{result}', ['as' => 'customer.survey.analyze', 'uses' => 'CustomerSurveyController@analyze']);
 
 Route::get('customer/{customer}/survey/{survey}/result/standard/{result}', ['as' => 'customer.survey.result.standard', 'uses' => 'CustomerSurveyResultController@standard']);
 
 Route::get('customer/{customer}/survey/{survey}/result/excel/{result}', ['as' => 'customer.survey.result.table', 'uses' => 'CustomerSurveyResultController@excel']);
+
+Route::get('customer/{customer}/survey/{survey}/result/copy/{result}', ['as' => 'customer.survey.result.copy', 'uses' => 'CustomerSurveyResultController@copy']);
+
+Route::get('customer/{customer}/survey/{survey}/result/facility/{id}/{view}', ['as' => 'customer.survey.result.facility', 'uses' => 'CustomerSurveyResultController@facility']);
 
 Route::resource('customer.questionnaire', 'CustomerQuestionnaireController', ['except' => 'show']);
 

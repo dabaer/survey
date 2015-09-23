@@ -214,13 +214,21 @@ class CustomerSurveyController extends Controller
      *
      * @internal param int $id
      */
-    public function sendWelcome(Customer $customer, Survey $survey)
+    public function sendMails(Customer $customer, Survey $survey, $type)
     {
-        if ($survey->welcome_mail == '') {
+        if($type == 1)
+        {
+            $tokens = $survey->tokens;
+            $mail = $survey->welcome_mail;
+        } elseif($type == 2) {
+            $tokens = $survey->tokens()->whereFinished(false)->get();
+            $mail = $survey->remember_mail;
+        }
+        if ($mail == '') {
             return redirect()->route('customer.survey.show', [$customer, $survey])->withErrors(['page' => 'Es wurde kein Text für die Email eingegeben!']);
         }
-        foreach ($survey->tokens as $token) {
-            $text = $survey->welcome_mail;
+        foreach ($tokens as $token) {
+            $text = $mail;
             $text = str_replace(':name', $token->name, $text);
             $key = $token->token;
             $link = route('survey.token.key', [$survey, $key]);
@@ -263,109 +271,139 @@ class CustomerSurveyController extends Controller
         if ($result->tokens()->where('finished', true)->count()<1) {
             return redirect()->route('customer.survey.show', [$customer, $survey])->withErrors(['page' => 'Es wurden noch keine Antworten abgegen.']);
         }
+        $result->touch();
         $questions = $result->survey->questions;
         $i = 0;
+        $type = $survey->groups[$result->group]['type'];
         foreach ($questions as $section) {
             $data[$i]['name'] = $section['title'];
             $q = 0;
 
             foreach ($section['questiongroups'] as $questiongroup) {
-                $data[$i]['questiongroups'][$q]['name'] = $questiongroup['heading'];
-                $data[$i]['questiongroups'][$q]['type'] = $questiongroup['type'];
-                $data[$i]['questiongroups'][$q]['condition'] = $questiongroup['condition'];
-                switch ($questiongroup['type']) {
-                    case 1:
-                        $a = 0;
-                        if (isset($all_answers[$questiongroup['id']])) {
-                            $answers = $all_answers[$questiongroup['id']];
+                if(($questiongroup['condition'] == 1) || ($questiongroup['condition'] == $type) || ($questiongroup['condition'] == 3 && $type ==1))
+                {
+                    $data[$i]['questiongroups'][$q]['name'] = $questiongroup['heading'];
+                    $data[$i]['questiongroups'][$q]['type'] = $questiongroup['type'];
+                    $data[$i]['questiongroups'][$q]['condition'] = $questiongroup['condition'];
+                    switch ($questiongroup['type']) {
+                        case 1:
+                            $a = 0;
+                            if (isset($all_answers[$questiongroup['id']])) {
+                                $answers = $all_answers[$questiongroup['id']];
 
+                                foreach ($answers as $answer) {
+                                    $data[$i]['questiongroups'][$q]['answers'][$a] = $answer->text;
+                                    $a++;
+                                }
+                            }
+                            break;
+                        case 2:
+                            $a = 0;
+                            $answers = $all_answers[$questiongroup['id']];
+                            $part = 0;
+                            $sol = array();
                             foreach ($answers as $answer) {
-                                $data[$i]['questiongroups'][$q]['answers'][$a] = $answer->text;
+                                if($answer->type == 2)
+                                {
+                                    $part++;
+                                    if (isset($sol[$answer->answer])) {
+                                        $sol[$answer->answer]++;
+                                    } else {
+                                        $sol[$answer->answer] = 1;
+                                    }
+                                }
+                            }
+                            $res = array();
+                            foreach ($questiongroup['questions'] as $question) {
+                                if (!isset($sol[$question['id']])) {
+                                    $sol[$question['id']] = 0;
+                                }
+                                $res[$a]['vote'] = $question['content'];
+                                $res[$a]['absolut'] = $sol[$question['id']];
+                                if($part == 0)
+                                    $res[$a]['percent'] = 0;
+                                else
+                                    $res[$a]['percent'] = round(($sol[$question['id']]/$part)*100);
                                 $a++;
                             }
-                        }
-                        break;
-                    case 2:
-                        $a = 0;
-                        $answers = $all_answers[$questiongroup['id']];
-                        $part = 0;
-                        $sol = array();
-                        foreach ($answers as $answer) {
-                            $part++;
-                            if (isset($sol[$answer->answer])) {
-                                $sol[$answer->answer]++;
-                            } else {
-                                $sol[$answer->answer] = 1;
-                            }
-                        }
-                        $res = array();
-                        foreach ($questiongroup['questions'] as $question) {
-                            if (!isset($sol[$question['id']])) {
-                                $sol[$question['id']] = 0;
-                            }
-                            $res[$a]['vote'] = $question['content'];
-                            $res[$a]['absolut'] = $sol[$question['id']];
-                            $res[$a]['percent'] = ($sol[$question['id']]/$part)*100;
-                            $a++;
-                        }
-                        $data[$i]['questiongroups'][$q]['answers'] = $res;
-                        $data[$i]['questiongroups'][$q]['participants'] = $part;
-                        break;
+                            $data[$i]['questiongroups'][$q]['answers'] = $res;
+                            $data[$i]['questiongroups'][$q]['participants'] = $part;
+                            break;
 
-                    case 3:
-                        //dd($questiongroup);
-                        $a = 0;
-                        foreach ($questiongroup['questions'] as $question) {
-                            $answers = $all_answers[$question['id']];
-                            //dd($answers);
-                            $part = 0;
-                            $sol = array(0, 0, 0, 0, 0, 0);
-                            foreach ($answers as $answer) {
-                                if ($answer->type == 3) {
-                                    $part++;
-                                    $sol[$answer->answer]++;
+                        case 3:
+                            //dd($questiongroup);
+                            $a = 0;
+                            foreach ($questiongroup['questions'] as $question) {
+                                $answers = $all_answers[$question['id']];
+                                //dd($answers);
+                                $part = 0;
+                                $allparts = 0;
+                                $sol = array(0, 0, 0, 0, 0, 0);
+                                foreach ($answers as $answer) {
+                                    if ($answer->type == 3) {
+                                        if($answer->answer != 0)
+                                            $part++;
+                                        $allparts++;
+                                        $sol[$answer->answer]++;
+                                    }
                                 }
-                            }
-                            //dd($sol);
-                            foreach ($sol as $key => $so) {
-                                $votes[$key]['absolut'] = $so;
-                                $votes[$key]['percent'] = ($so / $part) * 100;
-                                $votes[$key]['vote'] = $key;
-                            }
-                            //dd($votes);
-                            $data[$i]['questiongroups'][$q]['answers'][$a]['participants'] = $part;
-                            $data[$i]['questiongroups'][$q]['answers'][$a]['name'] = $question['content'];
-                            $data[$i]['questiongroups'][$q]['answers'][$a]['votes'] = $votes;
-                            $a++;
-                        }
-                        break;
-                    case 4:
-                        //dd($questiongroup);
-                        $a = 0;
-                        foreach ($questiongroup['questions'] as $question) {
-                            $answers = $all_answers[$question['id']];
-                            //dd($answers);
-                            $part = 0;
-                            $sol = array(0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
-                            foreach ($answers as $answer) {
-                                if ($answer->type == 4) {
-                                    $part++;
-                                    $sol[$answer->answer]++;
+                                //dd($sol);
+                                foreach ($sol as $key => $so) {
+                                    $votes[$key]['absolut'] = $so;
+                                    if($key == 0)
+                                        $votes[$key]['percent'] = round(($so / $allparts) * 100);
+                                    else
+                                    {
+                                        if($part == 0)
+                                        {
+                                            $votes[$key]['percent'] = 0;
+                                        }
+                                        else
+                                        {
+                                            $votes[$key]['percent'] = round(($so / $part) * 100);
+                                        }
+                                    }
+                                    $votes[$key]['vote'] = $key;
                                 }
+                                //dd($votes);
+                                $data[$i]['questiongroups'][$q]['answers'][$a]['participants'] = $part;
+                                $data[$i]['questiongroups'][$q]['answers'][$a]['allparticipants'] = $allparts;
+                                $data[$i]['questiongroups'][$q]['answers'][$a]['name'] = $question['content'];
+                                $data[$i]['questiongroups'][$q]['answers'][$a]['votes'] = $votes;
+                                $a++;
                             }
-                            //dd($sol);
-                            foreach ($sol as $key => $so) {
-                                $votes[$key]['absolut'] = $so;
-                                $votes[$key]['percent'] = ($so / $part) * 100;
-                                $votes[$key]['vote'] = $key;
+                            break;
+                        case 4:
+                            //dd($questiongroup);
+                            $a = 0;
+                            foreach ($questiongroup['questions'] as $question) {
+                                $answers = $all_answers[$question['id']];
+                                //dd($answers);
+                                $part = 0;
+                                $sol = array(0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
+                                foreach ($answers as $answer) {
+                                    if ($answer->type == 4) {
+                                        $part++;
+                                        $sol[$answer->answer]++;
+                                    }
+                                }
+                                //dd($sol);
+                                foreach ($sol as $key => $so) {
+                                    $votes[$key]['absolut'] = $so;
+                                    $votes[$key]['percent'] = round(($so / $part) * 100);
+                                    $votes[$key]['vote'] = $key;
+                                }
+                                //dd($votes);
+                                $good = $votes[9]['percent'] + $votes[8]['percent'];
+                                $bad = $votes[0]['percent'] + $votes[1]['percent'] + $votes[2]['percent'] + $votes[3]['percent'] +$votes[4]['percent'] + $votes[5]['percent'];
+                                $data[$i]['questiongroups'][$q]['mps'] = $good-$bad;
+                                $data[$i]['questiongroups'][$q]['answers'][$a]['participants'] = $part;
+                                $data[$i]['questiongroups'][$q]['answers'][$a]['name'] = $question['content'];
+                                $data[$i]['questiongroups'][$q]['answers'][$a]['votes'] = $votes;
+                                $a++;
                             }
-                            //dd($votes);
-                            $data[$i]['questiongroups'][$q]['answers'][$a]['participants'] = $part;
-                            $data[$i]['questiongroups'][$q]['answers'][$a]['name'] = $question['content'];
-                            $data[$i]['questiongroups'][$q]['answers'][$a]['votes'] = $votes;
-                            $a++;
-                        }
-                        break;
+                            break;
+                    }
                 }
                 $q++;
             }
